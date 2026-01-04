@@ -1,0 +1,44 @@
+---
+title: "Stripe"
+---
+
+```typescript
+"use server"
+
+import { stripe } from "@/lib/stripe"
+import { PLANS } from "@/lib/products"
+
+export async function createCheckoutSession(planId: string, userEmail: string) {
+  const plan = PLANS.find((p) => p.id === planId)
+
+  if (!plan || plan.id === "free") {
+    throw new Error("Invalid plan")
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ["card"],
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: plan.name,
+            description: plan.description,
+          },
+          unit_amount: plan.priceInCents,
+          recurring: {
+            interval: "month",
+          },
+        },
+        quantity: 1,
+      },
+    ],
+    mode: "subscription",
+    customer_email: userEmail,
+    success_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/explore?payment=success`,
+    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/pricing?payment=cancelled`,
+  })
+
+  return session.url
+}
+```
